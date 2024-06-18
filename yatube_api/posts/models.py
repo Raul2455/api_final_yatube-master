@@ -2,6 +2,7 @@
 
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.db.models import Q, F
 
 User = get_user_model()
 
@@ -15,7 +16,7 @@ class Group(models.Model):
 
     def __str__(self):
         """Возвращает строковое представление группы."""
-        return str(self.title)
+        return self.title
 
 
 class Post(models.Model):
@@ -33,9 +34,14 @@ class Post(models.Model):
         related_name="posts", blank=True, null=True
     )
 
+    class Meta:
+        """Мета-параметры для следующей модели."""
+
+    ordering = ['-pub_date']
+
     def __str__(self):
         """Возвращает строковое представление записи."""
-        return str(self.text)
+        return self.text[:50]  # Ограничиваем количество возвращаемых символов
 
 
 class Comment(models.Model):
@@ -73,5 +79,7 @@ class Follow(models.Model):
 
         constraints = [
             models.UniqueConstraint(fields=['user', 'following'],
-                                    name='user_following')
+                                    name='user_following'),
+            models.CheckConstraint(check=~Q(user=F('following')),
+                                   name='prevent_self_follow')
         ]

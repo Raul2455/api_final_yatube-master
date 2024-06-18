@@ -1,5 +1,5 @@
 """
-Модуль содержит вьюсеты для обработки постов.
+Модуль содержит вьюсеты для обработки постов,.
 
 групп, комментариев и подписок.
 """
@@ -10,6 +10,7 @@ from rest_framework import viewsets
 from rest_framework.filters import SearchFilter
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.mixins import CreateModelMixin, ListModelMixin
 
 from api.permissions import IsAuthorOrReadOnly
 from api.serializers import (CommentSerializer, FollowSerializer,
@@ -46,27 +47,31 @@ class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
     permission_classes = (IsAuthorOrReadOnly,)
 
+    def get_post(self):
+        """Возвращает пост по переданному post_id."""
+        return get_object_or_404(Post, pk=self.kwargs.get('post_id'))
+
     def get_queryset(self):
         """Возвращает комментарии для конкретного поста."""
-        post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
+        post = self.get_post()
         return post.comments.all()
 
     def perform_create(self, serializer):
         """Сохраняет автора и пост при создании комментария."""
-        post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
+        post = self.get_post()
         serializer.save(author=self.request.user, post=post)
 
 
-class FollowViewSet(viewsets.ModelViewSet):
+class FollowViewSet(CreateModelMixin, ListModelMixin, viewsets.GenericViewSet):
     """Вьюсет для обработки подписок."""
 
     serializer_class = FollowSerializer
     filter_backends = (SearchFilter,)
-    search_fields = ('user__username', 'following__username')
+    search_fields = ('following__username',)
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
-        """Возвращает подписки текущего пользователя."""
+        """Возращает подписки текущего пользователя."""
         user = self.request.user
         return user.follower.all()
 
